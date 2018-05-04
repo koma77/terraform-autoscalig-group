@@ -1,0 +1,122 @@
+provider "aws" {
+  region     = "ap-southeast-1"  
+  shared_credentials_file = "~/.aws/tf_lab"
+}
+
+resource "aws_vpc" "lab_vpc" {
+  cidr_block = "10.0.0.0/16"
+}
+
+resource "aws_internet_gateway" "lab_gw" {
+  vpc_id = "${aws_vpc.lab_vpc.id}"
+}
+
+resource "aws_route" "internet_access" {
+  route_table_id         = "${aws_vpc.lab_vpc.main_route_table_id}"
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = "${aws_internet_gateway.lab_gw.id}"
+}
+
+resource "aws_subnet" "lab" {
+  availability_zone       = "ap-southeast-1a"
+  vpc_id                  = "${aws_vpc.lab_vpc.id}"
+  cidr_block              = "10.0.0.0/24"
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "lab_1b" {
+  availability_zone       = "ap-southeast-1b"
+  vpc_id                  = "${aws_vpc.lab_vpc.id}"
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+}
+
+resource "aws_security_group" "default" {
+  name        = "sec_group_default"
+  description = "! Managed by terraform"
+  vpc_id      = "${aws_vpc.lab_vpc.id}"
+
+  # SSH access from anywhere
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  # ICMP
+  ingress {
+    from_port = 8
+    to_port = 0
+    protocol = "icmp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  # outbound internet access
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_key_pair" "auth" {
+  key_name   = "terraform"
+  public_key = "${file("~/.ssh/tf.pub")}"
+}
+
+#variable "dba_passwd" {}
+#module "db" {
+#  source = "modules/db"
+#  subnet1_id = "${aws_subnet.lab.id}"
+#  subnet2_id = "${aws_subnet.lab_1b.id}"
+#  vpc_id = "${aws_vpc.lab_vpc.id}"
+#  dba_passwd = "${var.dba_passwd}"
+#} 
+
+module "front1" {
+  source = "modules/front"
+  auth_id = "${aws_key_pair.auth.id}"
+  sg_id = "${aws_security_group.default.id}"
+  vpc_id = "${aws_vpc.lab_vpc.id}"
+  subnet_id = "${aws_subnet.lab.id}"
+  name_prefix = "front1"
+}
+
+module "front2" {
+  source = "modules/front"
+  auth_id = "${aws_key_pair.auth.id}"
+  sg_id = "${aws_security_group.default.id}"
+  vpc_id = "${aws_vpc.lab_vpc.id}"
+  subnet_id = "${aws_subnet.lab.id}"
+  name_prefix = "front2"
+}
+
+#output "rds_endpoint" {
+#  value = "${module.db.rds_endpoint}"
+#}
+
+output "elb-lab1" {
+  value = "${module.front1.lb_dns_name}"
+}
+
+output "elb-lab2" {
+  value = "${module.front1.lb_dns_name}"
+}
