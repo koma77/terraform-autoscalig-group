@@ -118,5 +118,5 @@ output "elb-lab1" {
 }
 
 output "elb-lab2" {
-  value = "${module.front1.lb_dns_name}"
+  value = "${module.front2.lb_dns_name}"
 }
