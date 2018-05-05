@@ -1,0 +1,98 @@
+- hosts: all
+  become: true
+  gather_facts: no
+
+  handlers:
+    - name: restart jenkins
+      service: name=jenkins state=restarted daemon_reload=yes
+
+    - name: restart docker
+      service: name=docker state=restarted daemon_reload=yes
+
+
+  tasks:
+    - name: Download jenkins stable repo
+      get_url:
+        url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+        mode: 0644
+    
+    - name: Import jenkins repo rpm key
+      rpm_key: key=https://jenkins-ci.org/redhat/jenkins-ci.org.key state=present
+ 
+    - name: Install packages
+      package: name={{ item }} state=present
+      with_items:
+      - docker
+      - git
+      - epel-release
+      - java-1.8.0-openjdk
+      - jenkins
+
+    - name: Configure insecure registry
+      copy: src=docker-daemon.json dest=/etc/docker/docker.json owner=root group=root mode=0644
+      notify: restart docker
+
+    - name: Allow jenkins to run docker build
+      copy: src=files/jenkins-sudoers dest=/etc/sudoers.d/95-jenkins owner=root group=root mode=0440
+
+    - name: Ensure jenkins groovy init dir exists
+      file: path=/var/lib/jenkins/init.groovy.d state=directory owner="jenkins" group="jenkins"
+  
+    - name: Ensure basic security init file exists
+      copy: src=files/basic-security.groovy dest=/var/lib/jenkins/init.groovy.d/basic-security.groovy owner="jenkins" group="jenkins" mode="0644"
+      notify: restart jenkins
+
+    - name: Ensure startup param file exists
+      copy: src=files/sysconfig-jenkins dest=/etc/sysconfig/jenkins mode="0644"
+      notify: restart jenkins
+
+    - name: Ensure jenkins opt exists
+      file: path=/opt/jenkins state=directory owner="jenkins" group="jenkins"
+
+    - name: Ensure jenkins svc is enabled
+      systemd: name=jenkins state=started enabled=yes daemon_reload=yes 
+ 
+    - name: Ensure jenkins cli exists
+      get_url:
+        url: http://localhost:8080/jnlpJars/jenkins-cli.jar
+        dest: /opt/jenkins/jenkins-cli.jar
+        mode: 0440
+      register: jenkins_local_cli
+      until: "'OK' in jenkins_local_cli.msg or 'file already exists' in jenkins_local_cli.msg"
+      retries: 5
+      delay: 10
+
+    #- name: Wait untils Jenkins web API is available
+    #  shell: curl --head --silent http://localhost:8080/cli/
+    #  register: result
+    #  until: result.stdout.find("200 OK") != -1
+    #  retries: 12
+    #  delay: 5
+
+    - name: List jenkins plugins
+      shell: "java -jar /opt/jenkins/jenkins-cli.jar -auth admin:admin -s http://localhost:8080 list-plugins | cut -f 1 -d ' '"
+      register: plugins_installed
+
+    - name: Install/update jenkins plugins
+      shell: java -jar /opt/jenkins/jenkins-cli.jar -auth admin:admin -s http://localhost:8080 install-plugin {{ item }}
+      when: plugins_installed.changed and plugins_installed.stdout.find('{{ item }}') == -1
+      with_items:
+      - docker-commons
+      - docker-workflow
+      - git
+      - github
+      - github-api
+      - workflow-aggregator
+      ignore_errors: yes
+      notify: restart jenkins
+
+ 
+    - name: Ensure docker svc is enabled
+      systemd: name=docker state=started enabled=yes daemon_reload=yes
+    
+    - name: Start local registry
+      shell: docker run -d -p 5000:5000 --restart=always --name registry registry:2
+
+
+

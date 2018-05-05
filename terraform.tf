@@ -1,10 +1,25 @@
 provider "aws" {
-  region     = "ap-southeast-1"  
+  region                  = "ap-southeast-1"
   shared_credentials_file = "~/.aws/tf_lab"
 }
 
 resource "aws_vpc" "lab_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = "true"
+  enable_dns_hostnames = "true"
+}
+
+resource "aws_route53_zone" "local" {
+  name   = "local"
+  vpc_id = "${aws_vpc.lab_vpc.id}"
+}
+
+resource "aws_route53_record" "registry" {
+  zone_id = "${aws_route53_zone.local.zone_id}"
+  name    = "registry.local"
+  type    = "A"
+  ttl     = "300"
+  records = ["${module.jenkins.jenkins_int_ip}"]
 }
 
 resource "aws_internet_gateway" "lab_gw" {
@@ -62,9 +77,9 @@ resource "aws_security_group" "default" {
 
   # ICMP
   ingress {
-    from_port = 8
-    to_port = 0
-    protocol = "icmp"
+    from_port   = 8
+    to_port     = 0
+    protocol    = "icmp"
     cidr_blocks = ["10.0.0.0/16"]
   }
 
@@ -82,6 +97,13 @@ resource "aws_key_pair" "auth" {
   public_key = "${file("~/.ssh/tf.pub")}"
 }
 
+module "jenkins" {
+  source    = "modules/jenkins"
+  auth_id   = "${aws_key_pair.auth.id}"
+  sg_id     = "${aws_security_group.default.id}"
+  subnet_id = "${aws_subnet.lab.id}"
+}
+
 #variable "dba_passwd" {}
 #module "db" {
 #  source = "modules/db"
@@ -91,32 +113,38 @@ resource "aws_key_pair" "auth" {
 #  dba_passwd = "${var.dba_passwd}"
 #} 
 
-module "front1" {
-  source = "modules/front"
-  auth_id = "${aws_key_pair.auth.id}"
-  sg_id = "${aws_security_group.default.id}"
-  vpc_id = "${aws_vpc.lab_vpc.id}"
-  subnet_id = "${aws_subnet.lab.id}"
-  name_prefix = "front1"
-}
+### value = "${module.jenkins.jenkins_ip}"
 
-module "front2" {
-  source = "modules/front"
-  auth_id = "${aws_key_pair.auth.id}"
-  sg_id = "${aws_security_group.default.id}"
-  vpc_id = "${aws_vpc.lab_vpc.id}"
-  subnet_id = "${aws_subnet.lab.id}"
-  name_prefix = "front2"
-}
+#module "front1" {
+#  source = "modules/front"
+#  auth_id = "${aws_key_pair.auth.id}"
+#  sg_id = "${aws_security_group.default.id}"
+#  vpc_id = "${aws_vpc.lab_vpc.id}"
+#  subnet_id = "${aws_subnet.lab.id}"
+#  name_prefix = "front1"
+#}
+
+#module "front2" {
+#  source = "modules/front"
+#  auth_id = "${aws_key_pair.auth.id}"
+#  sg_id = "${aws_security_group.default.id}"
+#  vpc_id = "${aws_vpc.lab_vpc.id}"
+#  subnet_id = "${aws_subnet.lab.id}"
+#  name_prefix = "front2"
+#}
 
 #output "rds_endpoint" {
 #  value = "${module.db.rds_endpoint}"
 #}
 
-output "elb-lab1" {
-  value = "${module.front1.lb_dns_name}"
-}
+#output "elb-lab1" {
+#  value = "${module.front1.lb_dns_name}"
+#}
 
-output "elb-lab2" {
-  value = "${module.front2.lb_dns_name}"
+#output "elb-lab2" {
+#  value = "${module.front2.lb_dns_name}"
+#}
+
+output "jenkins_ip" {
+  value = "${module.jenkins.jenkins_ip}"
 }
