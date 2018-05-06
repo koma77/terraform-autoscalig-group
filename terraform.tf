@@ -100,7 +100,7 @@ resource "aws_key_pair" "auth" {
 module "jenkins" {
   source    = "modules/jenkins"
   auth_id   = "${aws_key_pair.auth.id}"
-  sg_id     = "${aws_security_group.default.id}"
+  vpc_id    = "${aws_vpc.lab_vpc.id}"
   subnet_id = "${aws_subnet.lab.id}"
 }
 
@@ -115,14 +115,14 @@ module "jenkins" {
 
 ### value = "${module.jenkins.jenkins_ip}"
 
-#module "front1" {
-#  source = "modules/front"
-#  auth_id = "${aws_key_pair.auth.id}"
-#  sg_id = "${aws_security_group.default.id}"
-#  vpc_id = "${aws_vpc.lab_vpc.id}"
-#  subnet_id = "${aws_subnet.lab.id}"
-#  name_prefix = "front1"
-#}
+module "front1" {
+  source = "modules/front"
+  auth_id = "${aws_key_pair.auth.id}"
+  sg_id = "${aws_security_group.default.id}"
+  vpc_id = "${aws_vpc.lab_vpc.id}"
+  subnet_id = "${aws_subnet.lab.id}"
+  name_prefix = "front1"
+}
 
 #module "front2" {
 #  source = "modules/front"

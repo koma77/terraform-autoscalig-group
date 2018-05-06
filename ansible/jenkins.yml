@@ -30,7 +30,7 @@
       - jenkins
 
     - name: Configure insecure registry
-      copy: src=docker-daemon.json dest=/etc/docker/docker.json owner=root group=root mode=0644
+      copy: src=docker-daemon.json dest=/etc/docker/daemon.json owner=root group=root mode=0644
       notify: restart docker
 
     - name: Allow jenkins to run docker build

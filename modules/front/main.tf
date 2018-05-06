@@ -22,7 +22,7 @@ resource "aws_launch_configuration" "this" {
   instance_type = "t2.micro"
   security_groups = ["${var.sg_id}"]
   key_name = "${var.auth_id}"
-  #user_data = 
+  user_data = "${file("modules/front/userdata.sh")}"
 
   root_block_device {
     volume_size = "8"
