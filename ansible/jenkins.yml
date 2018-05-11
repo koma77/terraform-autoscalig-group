@@ -28,6 +28,7 @@
       - epel-release
       - java-1.8.0-openjdk
       - jenkins
+      - awscli
 
     - name: Configure insecure registry
       copy: src=docker-daemon.json dest=/etc/docker/daemon.json owner=root group=root mode=0644
@@ -78,15 +79,14 @@
       shell: java -jar /opt/jenkins/jenkins-cli.jar -auth admin:admin -s http://localhost:8080 install-plugin {{ item }}
       when: plugins_installed.changed and plugins_installed.stdout.find('{{ item }}') == -1
       with_items:
-      - docker-commons
-      - docker-workflow
+      #- docker-commons
+      #- docker-workflow
       - git
       - github
       - github-api
       - workflow-aggregator
       ignore_errors: yes
       notify: restart jenkins
-
  
     - name: Ensure docker svc is enabled
       systemd: name=docker state=started enabled=yes daemon_reload=yes

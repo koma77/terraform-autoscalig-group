@@ -22,6 +22,14 @@ resource "aws_route53_record" "registry" {
   records = ["${module.jenkins.jenkins_int_ip}"]
 }
 
+resource "aws_route53_record" "lab-db" {
+  zone_id = "${aws_route53_zone.local.zone_id}"
+  name    = "lab-db.local"
+  type    = "CNAME"
+  ttl     = "300"
+  records = ["${module.db.rds_addr}"]
+}
+
 resource "aws_internet_gateway" "lab_gw" {
   vpc_id = "${aws_vpc.lab_vpc.id}"
 }
@@ -104,23 +112,24 @@ module "jenkins" {
   subnet_id = "${aws_subnet.lab.id}"
 }
 
-#variable "dba_passwd" {}
-#module "db" {
-#  source = "modules/db"
-#  subnet1_id = "${aws_subnet.lab.id}"
-#  subnet2_id = "${aws_subnet.lab_1b.id}"
-#  vpc_id = "${aws_vpc.lab_vpc.id}"
-#  dba_passwd = "${var.dba_passwd}"
-#} 
+variable "dba_passwd" {}
+
+module "db" {
+  source     = "modules/db"
+  subnet1_id = "${aws_subnet.lab.id}"
+  subnet2_id = "${aws_subnet.lab_1b.id}"
+  vpc_id     = "${aws_vpc.lab_vpc.id}"
+  dba_passwd = "${var.dba_passwd}"
+}
 
 ### value = "${module.jenkins.jenkins_ip}"
 
 module "front1" {
-  source = "modules/front"
-  auth_id = "${aws_key_pair.auth.id}"
-  sg_id = "${aws_security_group.default.id}"
-  vpc_id = "${aws_vpc.lab_vpc.id}"
-  subnet_id = "${aws_subnet.lab.id}"
+  source      = "modules/front"
+  auth_id     = "${aws_key_pair.auth.id}"
+  sg_id       = "${aws_security_group.default.id}"
+  vpc_id      = "${aws_vpc.lab_vpc.id}"
+  subnet_id   = "${aws_subnet.lab.id}"
   name_prefix = "front1"
 }
 
@@ -133,9 +142,19 @@ module "front1" {
 #  name_prefix = "front2"
 #}
 
-#output "rds_endpoint" {
-#  value = "${module.db.rds_endpoint}"
-#}
+module "codedeploy" {
+  source   = "modules/codedeploy"
+  elb_name = "${module.front1.elb_name}"
+  asg_name = "${module.front1.asg_name}"
+}
+
+output "rds_endpoint" {
+  value = "${module.db.rds_addr}"
+}
+
+output "dba_passwd" {
+  value = "${var.dba_passwd }"
+}
 
 #output "elb-lab1" {
 #  value = "${module.front1.lb_dns_name}"

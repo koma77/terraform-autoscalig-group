@@ -2,8 +2,7 @@ variable "auth_id" {
   description = "Keypair for instance provisioning"
 }
 
-variable "vpc_id" {
-}
+variable "vpc_id" {}
 
 variable "subnet_id" {
   description = "VM subnet id"
@@ -47,15 +46,63 @@ resource "aws_security_group" "jenkins" {
   }
 }
 
+resource "aws_iam_role" "deploy-lab" {
+  name        = "deploy-lab"
+  description = "!Managed by terrafrom"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "deploy-lab_allow_s3_codedeploy" {
+  name = "deploy-lab_allow_s3_codedeploy"
+  role = "${aws_iam_role.deploy-lab.id}"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Effect": "Allow",
+        "Action": [
+          "s3:*",
+          "codedeploy:*"
+        ],
+        "Resource": [ "*" ]
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_instance_profile" "deploy-lab" {
+  name = "deploy-lab"
+  role = "${aws_iam_role.deploy-lab.name}"
+}
+
 resource "aws_instance" "jenkins" {
   connection {
     user        = "centos"
     private_key = "${file("~/.ssh/tf")}"
   }
 
-  instance_type = "t2.micro"
-  ami           = "ami-d2fa88ae"
-  key_name      = "${var.auth_id}"
+  instance_type        = "t2.micro"
+  ami                  = "ami-d2fa88ae"
+  key_name             = "${var.auth_id}"
+  iam_instance_profile = "${aws_iam_instance_profile.deploy-lab.id}"
 
   vpc_security_group_ids = ["${aws_security_group.jenkins.id}"]
   subnet_id              = "${var.subnet_id}"
@@ -67,6 +114,16 @@ resource "aws_instance" "jenkins" {
 
   tags {
     Name = "Jenkins 2.107 on 8080"
+  }
+}
+
+resource "aws_s3_bucket" "deploy-lab" {
+  bucket = "deploy-lab"
+  acl    = "private"
+
+  tags {
+    Name        = "Deployment bucket"
+    Environment = "Testing"
   }
 }
 
