@@ -130,7 +130,7 @@ resource "aws_s3_bucket" "deploy-lab" {
 ### Need this to break dependancy cycle between elb and instance
 resource "null_resource" "ansible-provisioner" {
   provisioner "local-exec" {
-    command = "while ! nc -z ${aws_instance.jenkins.public_ip} 22; do sleep 1; done ; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u centos --private-key ~/.ssh/tf -i ${aws_instance.jenkins.public_ip},  ansible/jenkins.yml"
+    command = "sleep 5; while ! nc -z ${aws_instance.jenkins.public_ip} 22; do sleep 1; done ; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u centos --private-key ~/.ssh/tf -i ${aws_instance.jenkins.public_ip},  ansible/jenkins.yml"
   }
 }
 

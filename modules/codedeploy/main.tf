@@ -44,7 +44,8 @@ resource "aws_iam_role_policy" "lab-codedeploy" {
         "ec2:DescribeInstanceStatus",
         "tag:GetTags",
         "tag:GetResources",
-        "sns:Publish"
+        "sns:Publish",
+        "elasticloadbalancing:*"
       ],
       "Resource": "*"
     }
@@ -63,9 +64,28 @@ resource "aws_codedeploy_deployment_group" "LAB-WP" {
   service_role_arn      = "${aws_iam_role.lab-codedeploy.arn}"
   autoscaling_groups    = ["${var.asg_name}"]
 
+  deployment_style {
+    deployment_option = "WITH_TRAFFIC_CONTROL"
+    deployment_type   = "IN_PLACE"
+  }
+
   load_balancer_info {
     elb_info {
-      name = "[${var.elb_name}]"
+      name = "${var.elb_name}"
     }
   }
+
+  trigger_configuration {
+    trigger_events     = ["DeploymentSuccess"]
+    trigger_name       = "update_successful_deployment"
+    trigger_target_arn = "${aws_sns_topic.lab_wp_codedeploy.arn}"
+  }
+}
+
+resource "aws_sns_topic" "lab_wp_codedeploy" {
+  name = "lab_wp_codedeploy"
+}
+
+output "sns_topic_arn" {
+  value = "${aws_sns_topic.lab_wp_codedeploy.arn}"
 }

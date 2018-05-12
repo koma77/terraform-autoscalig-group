@@ -148,6 +148,11 @@ module "codedeploy" {
   asg_name = "${module.front1.asg_name}"
 }
 
+module "lambda" {
+  source        = "modules/lambda"
+  sns_topic_arn = "${module.codedeploy.sns_topic_arn}"
+}
+
 output "rds_endpoint" {
   value = "${module.db.rds_addr}"
 }

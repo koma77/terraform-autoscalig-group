@@ -135,7 +135,7 @@ resource "aws_autoscaling_group" "this" {
   enabled_metrics           = ["GroupMinSize", "GroupMaxSize", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupTotalInstances"]
   metrics_granularity       = "1Minute"
   load_balancers            = ["${aws_elb.this.id}"]
-  health_check_grace_period = 120
+  health_check_grace_period = 240
   health_check_type         = "ELB"
 
   tag {
