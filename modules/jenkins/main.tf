@@ -100,12 +100,16 @@ resource "aws_instance" "jenkins" {
   }
 
   instance_type        = "t2.micro"
-  ami                  = "ami-d2fa88ae"
+  ami                  = "ami-da6151a6"
   key_name             = "${var.auth_id}"
   iam_instance_profile = "${aws_iam_instance_profile.deploy-lab.id}"
 
   vpc_security_group_ids = ["${aws_security_group.jenkins.id}"]
   subnet_id              = "${var.subnet_id}"
+
+  provisioner "local-exec" {
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u centos --private-key ~/.ssh/tf -i ${aws_instance.jenkins.public_ip},  ansible/jenkins.yml"
+  }
 
   root_block_device {
     volume_size           = "8"
@@ -122,17 +126,25 @@ resource "aws_s3_bucket" "deploy-lab" {
   acl    = "private"
 
   tags {
-    Name        = "Deployment bucket"
-    Environment = "Testing"
+    Name = "Deployment bucket"
+  }
+}
+
+resource "aws_s3_bucket" "wp-db-bck" {
+  bucket = "wp-db-bck"
+  acl    = "private"
+
+  tags {
+    Name = "DB backups bucket"
   }
 }
 
 ### Need this to break dependancy cycle between elb and instance
-resource "null_resource" "ansible-provisioner" {
-  provisioner "local-exec" {
-    command = "sleep 5; while ! nc -z ${aws_instance.jenkins.public_ip} 22; do sleep 1; done ; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u centos --private-key ~/.ssh/tf -i ${aws_instance.jenkins.public_ip},  ansible/jenkins.yml"
-  }
-}
+#resource "null_resource" "ansible-provisioner" {
+#  provisioner "local-exec" {
+#    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u centos --private-key ~/.ssh/tf -i ${aws_instance.jenkins.public_ip},  ansible/jenkins.yml"
+#  }
+#}
 
 output "jenkins_int_ip" {
   value = "${aws_instance.jenkins.private_ip}"

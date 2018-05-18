@@ -66,7 +66,7 @@ resource "aws_iam_instance_profile" "wp-lab" {
 
 resource "aws_launch_configuration" "this" {
   name_prefix          = "${var.name_prefix}"
-  image_id             = "ami-d2fa88ae"
+  image_id             = "ami-da6151a6"
   instance_type        = "t2.micro"
   iam_instance_profile = "${aws_iam_instance_profile.wp-lab.id}"
   security_groups      = ["${var.sg_id}"]
@@ -135,7 +135,7 @@ resource "aws_autoscaling_group" "this" {
   enabled_metrics           = ["GroupMinSize", "GroupMaxSize", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupTotalInstances"]
   metrics_granularity       = "1Minute"
   load_balancers            = ["${aws_elb.this.id}"]
-  health_check_grace_period = 240
+  health_check_grace_period = 300
   health_check_type         = "ELB"
 
   tag {
@@ -145,7 +145,7 @@ resource "aws_autoscaling_group" "this" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "this" {
+resource "aws_cloudwatch_metric_alarm" "cpualarm-up" {
   alarm_name          = "${var.name_prefix}-cpu-alarm"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = "2"
@@ -161,22 +161,6 @@ resource "aws_cloudwatch_metric_alarm" "this" {
 
   alarm_description = "This metric monitor EC2 instance cpu utilization"
   alarm_actions     = ["${aws_autoscaling_policy.scale_out.arn}"]
-}
-
-resource "aws_autoscaling_policy" "scale_out" {
-  name                   = "${var.name_prefix}-scale_out"
-  scaling_adjustment     = 1
-  adjustment_type        = "ChangeInCapacity"
-  cooldown               = 300
-  autoscaling_group_name = "${aws_autoscaling_group.this.name}"
-}
-
-resource "aws_autoscaling_policy" "scale_down" {
-  name                   = "${var.name_prefix}-scale_up"
-  scaling_adjustment     = -1
-  adjustment_type        = "ChangeInCapacity"
-  cooldown               = 120
-  autoscaling_group_name = "${aws_autoscaling_group.this.name}"
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpualarm-down" {
@@ -195,6 +179,22 @@ resource "aws_cloudwatch_metric_alarm" "cpualarm-down" {
 
   alarm_description = "This metric monitor EC2 instance cpu utilization"
   alarm_actions     = ["${aws_autoscaling_policy.scale_down.arn}"]
+}
+
+resource "aws_autoscaling_policy" "scale_out" {
+  name                   = "${var.name_prefix}-scale_out"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = "${aws_autoscaling_group.this.name}"
+}
+
+resource "aws_autoscaling_policy" "scale_down" {
+  name                   = "${var.name_prefix}-scale_down"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = "${aws_autoscaling_group.this.name}"
 }
 
 output "asg_name" {

@@ -11,6 +11,14 @@
 
 
   tasks:
+    - name: Wait 300 seconds for port 22 to become open and contain "OpenSSH"
+      wait_for:
+        port: 22
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        search_regex: OpenSSH
+        delay: 10
+      connection: local
+
     - name: Download jenkins stable repo
       get_url:
         url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
@@ -28,7 +36,11 @@
       - epel-release
       - java-1.8.0-openjdk
       - jenkins
-      - awscli
+      - mysql
+      - python-pip
+    
+    - name: Install awscli
+      pip: name=awscli
 
     - name: Configure insecure registry
       copy: src=docker-daemon.json dest=/etc/docker/daemon.json owner=root group=root mode=0644
@@ -87,7 +99,13 @@
       - workflow-aggregator
       ignore_errors: yes
       notify: restart jenkins
- 
+
+    - name: Ensure ext scripts directory exists
+      file: path=/var/lib/jenkins/ext-scripts state=directory owner="jenkins" group="jenkins"
+
+    - name: Ensure db backup script exists
+      copy: src=db-backup.sh dest=/var/lib/jenkins/ext-scripts/db-backup.sh owner="jenkins" group="jenkins" mode="0755"
+
     - name: Ensure docker svc is enabled
       systemd: name=docker state=started enabled=yes daemon_reload=yes
     

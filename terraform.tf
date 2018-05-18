@@ -122,8 +122,6 @@ module "db" {
   dba_passwd = "${var.dba_passwd}"
 }
 
-### value = "${module.jenkins.jenkins_ip}"
-
 module "front1" {
   source      = "modules/front"
   auth_id     = "${aws_key_pair.auth.id}"
@@ -133,24 +131,28 @@ module "front1" {
   name_prefix = "front1"
 }
 
-#module "front2" {
-#  source = "modules/front"
-#  auth_id = "${aws_key_pair.auth.id}"
-#  sg_id = "${aws_security_group.default.id}"
-#  vpc_id = "${aws_vpc.lab_vpc.id}"
-#  subnet_id = "${aws_subnet.lab.id}"
-#  name_prefix = "front2"
+### INPLACE DEPLOY ###
+#module "codedeploy" {
+#  source   = "modules/codedeploy"
+#  elb_name = "${module.front1.elb_name}"
+#  asg_name = "${module.front1.asg_name}"
 #}
 
-module "codedeploy" {
-  source   = "modules/codedeploy"
+#module "lambda" {
+#  source        = "modules/lambda"
+#  sns_topic_arn = "${module.codedeploy.sns_topic_arn}"
+#}
+
+### BG DEPLOY ###
+module "codedeploy_bg" {
+  source   = "modules/codedeploy_bg"
   elb_name = "${module.front1.elb_name}"
   asg_name = "${module.front1.asg_name}"
 }
 
 module "lambda" {
   source        = "modules/lambda"
-  sns_topic_arn = "${module.codedeploy.sns_topic_arn}"
+  sns_topic_arn = "${module.codedeploy_bg.sns_topic_arn}"
 }
 
 output "rds_endpoint" {
@@ -161,9 +163,9 @@ output "dba_passwd" {
   value = "${var.dba_passwd }"
 }
 
-#output "elb-lab1" {
-#  value = "${module.front1.lb_dns_name}"
-#}
+output "elb-lab1" {
+  value = "${module.front1.elb_dns_name}"
+}
 
 #output "elb-lab2" {
 #  value = "${module.front2.lb_dns_name}"
