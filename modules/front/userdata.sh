@@ -12,10 +12,10 @@ curl https://aws-codedeploy-ap-south-1.s3.amazonaws.com/latest/install -o /tmp/c
 ruby /tmp/code-deploy-install auto
 systemctl start codedeploy-agent
 systemctl enable codedeploy-agent
-pip install awscli
-aws s3 cp s3://deploy-lab/last-successful-deploy.txt /tmp/
-LAST_REV=$(cat /tmp/last-successful-deploy.txt)
-aws s3 cp s3://deploy-lab/$LAST_REV /tmp
-unzip -o /tmp/$LAST_REV -d /
-/bin/bash /wp-start.sh
+#pip install awscli
+#aws s3 cp s3://deploy-lab/last-successful-deploy.txt /tmp/
+#LAST_REV=$(cat /tmp/last-successful-deploy.txt)
+#aws s3 cp s3://deploy-lab/$LAST_REV /tmp
+#unzip -o /tmp/$LAST_REV -d /
+#/bin/bash /wp-start.sh
 
